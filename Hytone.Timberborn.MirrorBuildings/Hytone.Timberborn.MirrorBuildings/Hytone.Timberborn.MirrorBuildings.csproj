@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TimberAPI" Version="0.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>..\Unity.InputSystem.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
