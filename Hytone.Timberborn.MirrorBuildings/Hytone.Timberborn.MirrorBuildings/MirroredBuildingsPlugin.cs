@@ -6,7 +6,7 @@ using TimberbornAPI.Common;
 
 namespace Hytone.Timberborn.MirrorBuildings
 {
-    [BepInPlugin("hytone.plugins.mirrorbuildings", "MirroredBuildings", "1.0.0")]
+    [BepInPlugin("hytone.plugins.mirrorbuildings", "MirroredBuildings", "1.1.0")]
     [BepInDependency("com.timberapi.timberapi")]
     [HarmonyPatch]
     public class MirroredBuildingsPlugin : BaseUnityPlugin
