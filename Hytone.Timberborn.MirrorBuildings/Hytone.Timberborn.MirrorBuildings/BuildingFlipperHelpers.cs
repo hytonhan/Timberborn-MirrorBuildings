@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Linq;
+using TimberApi.DependencyContainerSystem;
 using Timberborn.BlockSystem;
 using Timberborn.BlockSystemNavigation;
 using Timberborn.Buildings;
 using Timberborn.SlotSystem;
 using Timberborn.Warehouses;
 using Timberborn.Workshops;
-using TimberbornAPI;
+//using TimberbornAPI;
 using UnityEngine;
 
 namespace Hytone.Timberborn.MirrorBuildings
@@ -30,9 +31,10 @@ namespace Hytone.Timberborn.MirrorBuildings
         public static void Flip(GameObject gameObject)
         {
             var model = gameObject.GetComponent<BuildingModel>();
-            var mesh = model.FinishedModel.GetComponent<MeshFilter>().mesh;
+            var finishedModelMesh = model.FinishedModel.GetComponent<MeshFilter>()?.mesh;
+            var unFinishedModelMesh = model.UnfinishedModel.GetComponentInChildren<MeshFilter>()?.mesh;
             var blockObject = model.GetComponent<BlockObject>();
-            var size = blockObject.BlocksSpecification.Size;
+            var size = blockObject._blocksSpecification.Size;
             var hasEntrance = blockObject.Entrance.HasEntrance;
             Vector3Int entranceCoords = new Vector3Int();
             if (hasEntrance)
@@ -40,14 +42,30 @@ namespace Hytone.Timberborn.MirrorBuildings
                 entranceCoords = blockObject.Entrance.Coordinates;
             }
 
-            if (mesh == null) return;
-            FlipMesh(mesh, size);
-            if (flipX) FlipNormals(mesh);
+            if (finishedModelMesh == null)
+            {
+                return;
+            }
 
+            FlipMesh(finishedModelMesh, size);
+            if (flipX)
+            {
+                FlipNormals(finishedModelMesh);
+            }
+
+            if (unFinishedModelMesh != null)
+            {
+                FlipMesh(unFinishedModelMesh, size);
+                if (flipX) FlipNormals(unFinishedModelMesh);
+                unFinishedModelMesh.RecalculateNormals();
+            }
+
+            finishedModelMesh.RecalculateNormals();
             FlipSomeRandomAnimators(gameObject, size);
             FlipBlocks(blockObject, size);
             FlipWaterStuff(gameObject, size);
             FlipEntrance(gameObject, blockObject, size, hasEntrance, entranceCoords);
+            FlipSomeRandomPositions(gameObject, model.FinishedModel.GetComponent<MeshFilter>(), size);
         }
 
         /// <summary>
@@ -94,8 +112,13 @@ namespace Hytone.Timberborn.MirrorBuildings
         private static void FlipSomeRandomAnimators(GameObject gameObject, Vector3Int size)
         {
             var animator = gameObject.GetComponentInChildren<Animator>();
+            var smokeAnimator = gameObject.GetComponentInChildren<SmokeAnimationController>();
+
             if (animator != null &&
-                (animator.name.Contains("WaterPump.Folktails") || animator.name.Contains("Gristmill") || animator.name.Contains("PaperMill")))
+                (animator.name.Contains("WaterPump.Folktails") ||
+                 animator.name.Contains("Gristmill") ||
+                 animator.name.Contains("PaperMill") ||
+                 animator.name.Contains("DeepWaterPump.IronTeeth")))
             {
                 animator.transform.localScale = new Vector3(animator.transform.localScale.x * -1,
                                                               animator.transform.localScale.y,
@@ -103,6 +126,30 @@ namespace Hytone.Timberborn.MirrorBuildings
                 animator.transform.localPosition = new Vector3(size.x - animator.transform.localPosition.x,
                                                                animator.transform.localPosition.y,
                                                                animator.transform.localPosition.z);
+            }
+            // Healer doesn't have an animator, but just an SmokeAnimationController
+            if (smokeAnimator != null &&
+                (smokeAnimator.name.Contains("Healer")))
+            {
+                smokeAnimator._smoke.transform.localPosition = new Vector3(size.x - smokeAnimator._smoke.transform.localPosition.x,
+                                                                           smokeAnimator._smoke.transform.localPosition.y,
+                                                                           smokeAnimator._smoke.transform.localPosition.z);
+            }
+        }
+
+        /// <summary>
+        /// Metal Platforms need to have their local position adjusted
+        /// </summary>
+        /// <param name="gameObject"></param>
+        /// <param name="meshfilter"></param>
+        /// <param name="size"></param>
+        private static void FlipSomeRandomPositions(GameObject gameObject, MeshFilter meshfilter, Vector3Int size)
+        {
+            if (gameObject.name.Contains("MetalPlatform"))
+            {
+                meshfilter.transform.localPosition = new Vector3(meshfilter.transform.localPosition.x * -1,
+                                                                  meshfilter.transform.localPosition.y,
+                                                                  meshfilter.transform.localPosition.z);
             }
         }
 
@@ -114,7 +161,11 @@ namespace Hytone.Timberborn.MirrorBuildings
         /// <param name="size"></param>
         /// <param name="hasEntrance"></param>
         /// <param name="entranceCoords"></param>
-        private static void FlipEntrance(GameObject gameObject, BlockObject blockObject, Vector3Int size, bool hasEntrance, Vector3Int entranceCoords)
+        private static void FlipEntrance(GameObject gameObject,
+                                         BlockObject blockObject,
+                                         Vector3Int size,
+                                         bool hasEntrance,
+                                         Vector3Int entranceCoords)
         {
             if (hasEntrance)
             {
@@ -123,35 +174,35 @@ namespace Hytone.Timberborn.MirrorBuildings
                 var settingComponent = gameObject.GetComponent<BlockObjectNavMeshSettings>();
                 if (settingComponent != null)
                 {
-                    for (int i = 0; i < settingComponent.AddedEdges.Length; i++)
+                    for (int i = 0; i < settingComponent._addedEdges.Length; i++)
                     {
-                        if (settingComponent.AddedEdges[i].End == blockObject.Entrance.Coordinates &&
-                           settingComponent.AddedEdges[i].Start == (blockObject.Entrance.Coordinates - new Vector3Int(0, -1, 0)))
+                        if (settingComponent._addedEdges[i].End == blockObject.Entrance.Coordinates &&
+                           settingComponent._addedEdges[i].Start == (blockObject.Entrance.Coordinates - new Vector3Int(0, -1, 0)))
                         {
-                            settingComponent.AddedEdges[i].Start = new Vector3Int(size.x - 1 - entranceCoords.x,
-                                                                                  settingComponent.AddedEdges[i].Start.y,
-                                                                                  settingComponent.AddedEdges[i].Start.z);
-                            settingComponent.AddedEdges[i].End = new Vector3Int(size.x - 1 - entranceCoords.x,
-                                                                                settingComponent.AddedEdges[i].End.y,
-                                                                                settingComponent.AddedEdges[i].End.z);
+                            settingComponent._addedEdges[i]._start = new Vector3Int(size.x - 1 - entranceCoords.x,
+                                                                                  settingComponent._addedEdges[i].Start.y,
+                                                                                  settingComponent._addedEdges[i].Start.z);
+                            settingComponent._addedEdges[i]._end = new Vector3Int(size.x - 1 - entranceCoords.x,
+                                                                                settingComponent._addedEdges[i].End.y,
+                                                                                settingComponent._addedEdges[i].End.z);
                         }
                     }
                 }
 
                 //This moves the actual entrance which beavers use to enter
-                blockObject.Entrance.Coordinates = new Vector3Int(size.x - 1 - entranceCoords.x,
-                                                                  entranceCoords.y,
-                                                                  entranceCoords.z);
+                blockObject._entrance._coordinates = new Vector3Int(size.x - 1 - entranceCoords.x,
+                                                                    entranceCoords.y,
+                                                                    entranceCoords.z);
 
                 //This moves the transform component which dictates where beavers sit when idle on workplace
                 var transformSlotInit = blockObject.gameObject.GetComponent<TransformSlotInitializer>();
                 if (transformSlotInit != null)
                 {
-                    transformSlotInit.SlotSpecifications.Count();
+                    transformSlotInit._slotSpecifications.Count();
 
-                    foreach (var item in transformSlotInit.SlotSpecifications)
+                    foreach (var item in transformSlotInit._slotSpecifications)
                     {
-                        var slotRetriever = TimberAPI.DependencyContainer.GetInstance<SlotRetriever>();
+                        var slotRetriever = DependencyContainer.GetInstance<SlotRetriever>();
                         var slots = slotRetriever.GetSlots(blockObject.gameObject, item.SlotKeyword);
 
                         foreach (Transform transform in slots)
@@ -173,20 +224,20 @@ namespace Hytone.Timberborn.MirrorBuildings
         private static void FlipBlocks(BlockObject blockObject, Vector3Int size)
         {
 
-            for (int i = 0; i < blockObject.BlocksSpecification.Size.y * blockObject.BlocksSpecification.Size.z; i++)
+            for (int i = 0; i < blockObject._blocksSpecification.Size.y * blockObject._blocksSpecification.Size.z; i++)
             {
-                var counter = Math.Floor((float)blockObject.BlocksSpecification.Size.x / 2);
+                var counter = Math.Floor((float)blockObject._blocksSpecification.Size.x / 2);
 
                 for (int j = 0; j < (int)counter; j++)
                 {
                     int firstIndex = i * size.x + j;
                     int secondIndex = (i + 1) * size.x - j - 1;
-                    var temp = blockObject.BlocksSpecification.BlockSpecifications[firstIndex];
-                    blockObject.BlocksSpecification.BlockSpecifications[firstIndex] = blockObject.BlocksSpecification.BlockSpecifications[secondIndex];
-                    blockObject.BlocksSpecification.BlockSpecifications[secondIndex] = temp;
+                    var temp = blockObject._blocksSpecification.BlockSpecifications[firstIndex];
+                    blockObject._blocksSpecification.BlockSpecifications[firstIndex] = blockObject._blocksSpecification.BlockSpecifications[secondIndex];
+                    blockObject._blocksSpecification.BlockSpecifications[secondIndex] = temp;
                 }
             }
-            blockObject._blocks = Blocks.From(blockObject.BlocksSpecification);
+            blockObject._blocks = Blocks.From(blockObject._blocksSpecification);
         }
 
         /// <summary>
@@ -196,18 +247,21 @@ namespace Hytone.Timberborn.MirrorBuildings
         /// <param name="size"></param>
         private static void FlipWaterStuff(GameObject gameObject, Vector3Int size)
         {
-            if (gameObject.TryGetComponent<WaterManufactory>(out var waterManufactory))
+            if (gameObject.TryGetComponent<WaterNeederManufactoryLimiter>(out var waterManufactory))
             {
-                waterManufactory.WaterCoordinates = new Vector3Int(size.x - 1 - waterManufactory.WaterCoordinates.x,
-                                                                   waterManufactory.WaterCoordinates.y,
-                                                                   waterManufactory.WaterCoordinates.z);
+                waterManufactory._waterInput._waterCoordinates = new Vector3Int(size.x - 1 - waterManufactory._waterInput._waterCoordinates.x,
+                                                                                waterManufactory._waterInput._waterCoordinates.y,
+                                                                                waterManufactory._waterInput._waterCoordinates.z);
             }
 
-            if (gameObject.TryGetComponent<WaterTankWaterLevel>(out var waterlevel))
+            if (gameObject.TryGetComponent<GoodAmountTransformHeight>(out var waterlevel))
             {
-                waterlevel.WaterPlane.localPosition = new Vector3(size.x - waterlevel.WaterPlane.localPosition.x,
-                                                                  waterlevel.WaterPlane.localPosition.y,
-                                                                  waterlevel.WaterPlane.localPosition.z);
+                if (waterlevel._good != "Biofuel")
+                {
+                    waterlevel._target.localPosition = new Vector3(size.x - waterlevel._target.localPosition.x,
+                                                                   waterlevel._target.localPosition.y,
+                                                                   waterlevel._target.localPosition.z);
+                }
             }
         }
     }

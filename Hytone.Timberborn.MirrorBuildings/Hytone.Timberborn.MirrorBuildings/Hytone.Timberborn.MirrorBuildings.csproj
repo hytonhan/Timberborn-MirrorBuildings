@@ -7,7 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TimberAPI" Version="0.3.0" />
+    <PackageReference Include="BepInEx.Core" Version="5.4.19" />
+    <PackageReference Include="TimberAPI" Version="0.5.0-beta" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,5 +16,9 @@
       <HintPath>..\Unity.InputSystem.dll</HintPath>
     </Reference>
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy $(ProjectDir)..\..\README.md $(ProjectDir)package&#xD;&#xA;copy $(OutDir)$(AssemblyName).dll $(ProjectDir)\package\MirroredBuildings\plugins" />
+  </Target>
 
 </Project>

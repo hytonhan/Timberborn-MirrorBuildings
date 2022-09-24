@@ -1,26 +1,21 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
-using TimberbornAPI;
-using TimberbornAPI.Common;
+using TimberApi.ConsoleSystem;
+using TimberApi.ModSystem;
 
 namespace Hytone.Timberborn.MirrorBuildings
 {
-    [BepInPlugin("hytone.plugins.mirrorbuildings", "MirroredBuildings", "1.1.0")]
-    [BepInDependency("com.timberapi.timberapi")]
+    [BepInPlugin("hytone.plugins.mirrorbuildings", "MirroredBuildings", "2.0.0")]
     [HarmonyPatch]
-    public class MirroredBuildingsPlugin : BaseUnityPlugin
+    public class MirroredBuildingsPlugin : BaseUnityPlugin, IModEntrypoint
     {
         internal static ManualLogSource Log;
 
-        public void Awake()
+        public void Entry(IMod mod, IConsoleWriter consoleWriter)
         {
-            Log = Logger;
-            // Harmony patches
             new Harmony("hytone.plugins.buildingtest").PatchAll();
-
-            TimberAPI.DependencyRegistry.AddConfigurator(new MirrorBuildingConfigurator(), SceneEntryPoint.InGame);
-            Log.LogInfo("Loaded MirroredBuildings.");
+            consoleWriter.LogInfo("Loaded MirroredBuildings.");
         }
     }
 }

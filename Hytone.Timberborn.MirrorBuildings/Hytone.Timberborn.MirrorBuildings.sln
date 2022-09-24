@@ -3,7 +3,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hytone.Timberborn.MirrorBuildings", "Hytone.Timberborn.MirrorBuildings\Hytone.Timberborn.MirrorBuildings.csproj", "{A001CDC4-F08E-4DE4-ADF2-39177A2A1141}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hytone.Timberborn.MirrorBuildings", "Hytone.Timberborn.MirrorBuildings\Hytone.Timberborn.MirrorBuildings.csproj", "{A001CDC4-F08E-4DE4-ADF2-39177A2A1141}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution items", "Solution items", "{DC56B96F-2CAC-43A9-9C46-E6917B814B6C}"
+	ProjectSection(SolutionItems) = preProject
+		..\README.md = ..\README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

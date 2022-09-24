@@ -1,13 +1,15 @@
-﻿using HarmonyLib;
+﻿using Bindito.Unity;
+using HarmonyLib;
 using System;
 using System.Linq;
+using TimberApi.DependencyContainerSystem;
 using Timberborn.BlockObjectTools;
 using Timberborn.BlockSystem;
 using Timberborn.Buildings;
 using Timberborn.Coordinates;
 using Timberborn.EntitySystem;
 using Timberborn.PreviewSystem;
-using TimberbornAPI;
+using Timberborn.ToolSystem;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -89,6 +91,16 @@ namespace Hytone.Timberborn.MirrorBuildings
                 return;
             }
             component.IsFlipped = _flipState;
+
+            // Reset flip state after building is places
+            _flipState = false;
+        }
+
+        [HarmonyPatch(typeof(ToolManager), nameof(ToolManager.ExitTool))]
+        [HarmonyPostfix]
+        static void ExitToolPostfix()
+        {
+            _flipState = false;
         }
 
         /// <summary>
@@ -98,12 +110,12 @@ namespace Hytone.Timberborn.MirrorBuildings
         /// <returns></returns>
         private static MeshFilter GetPrefabMeshFilter(GameObject gameObject)
         {
-            var prefabNameRetriever = TimberAPI.DependencyContainer.GetInstance<PrefabNameRetriever>();
+            var prefabNameRetriever = DependencyContainer.GetInstance<PrefabNameRetriever>();
             var prefabname = prefabNameRetriever.GetPrefabName(gameObject);
-            var prefabMapper = TimberAPI.DependencyContainer.GetInstance<PrefabNameMapper>();
+            var prefabMapper = DependencyContainer.GetInstance<PrefabNameMapper>();
             var prefab = prefabMapper.GetPrefab(prefabname);
 
-            var previewFactory = TimberAPI.DependencyContainer.GetInstance<PreviewFactory>();
+            var previewFactory = DependencyContainer.GetInstance<PreviewFactory>();
 
             var preview = previewFactory.Create(prefab);
 
@@ -111,6 +123,20 @@ namespace Hytone.Timberborn.MirrorBuildings
             var prefabMesh = prefabModel.FinishedModel.GetComponent<MeshFilter>();
 
             return prefabMesh;
+        }
+
+        [HarmonyPatch(typeof(EntityService), "Instantiate", typeof(GameObject), typeof(Guid))]
+        class MinWindStrengthPatch
+        {
+            public static void Postfix(GameObject __result)
+            {
+                if (__result.GetComponent<Building>() != null &&
+                    !__result.name.Contains("Path"))
+                {
+                    var instantiator = DependencyContainer.GetInstance<IInstantiator>();
+                    instantiator.AddComponent<MirrorBuildingMonobehaviour>(__result);
+                }
+            }
         }
     }
 }
