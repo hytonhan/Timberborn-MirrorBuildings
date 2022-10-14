@@ -1,6 +1,6 @@
 {
   "name": "MirroredBuildings",
-  "version_number": "3.0.0",
+  "version_number": "3.0.1",
   "website_url": "https://github.com/hytonhan/Timberborn-MirrorBuildings",
   "description": "Press F to flip a building when placing it.",
   "dependencies": [
