@@ -14,7 +14,10 @@ and adding the dll to your bepinex plugins folder. This plugin is dependent on t
 
 # Changelog
 
-#v3.0.0 - 23.9.2022
+## v3.0.1 - 14.10.2022
+- Improved performance when placing down a building
+
+## v3.0.0 - 23.9.2022
 - Updated to work with TimberAPI v0.5
 - Reset flipstate to false when exiting any tool
 
