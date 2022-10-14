@@ -6,7 +6,6 @@ using TimberApi.ModSystem;
 
 namespace Hytone.Timberborn.MirrorBuildings
 {
-    [BepInPlugin("hytone.plugins.mirrorbuildings", "MirroredBuildings", "2.0.0")]
     [HarmonyPatch]
     public class MirroredBuildingsPlugin : BaseUnityPlugin, IModEntrypoint
     {
