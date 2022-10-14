@@ -20,6 +20,8 @@ namespace Hytone.Timberborn.MirrorBuildings
     {
         public static bool _flipState = false;
 
+        private static MeshFilter _prefabMeshFilter;
+
         /// <summary>
         /// Tracks when F is pressed and toggles _flipState when it is pressed
         /// </summary>
@@ -53,12 +55,15 @@ namespace Hytone.Timberborn.MirrorBuildings
                 return;
             }
             var mesh = meshFilter.mesh;
-            var prefabMesh = GetPrefabMeshFilter(__instance.gameObject);
+            if (_prefabMeshFilter == null)
+            {
+                _prefabMeshFilter = GetPrefabMeshFilter(__instance.gameObject);
+            }
 
             var gameobjectFirstVert = MathF.Round(mesh.vertices.First().x, 4);
-            var prefabFirstVert = MathF.Round(prefabMesh.mesh.vertices.First().x, 4);
+            var prefabFirstVert = MathF.Round(_prefabMeshFilter.mesh.vertices.First().x, 4);
             var gameobjectLastVert = MathF.Round(mesh.vertices.Last().x, 4);
-            var prefabLasttVert = MathF.Round(prefabMesh.mesh.vertices.Last().x, 4);
+            var prefabLasttVert = MathF.Round(_prefabMeshFilter.mesh.vertices.Last().x, 4);
 
             if ((_flipState == true && gameobjectFirstVert == prefabFirstVert && gameobjectLastVert == prefabLasttVert) ||
                 (_flipState == false && (gameobjectFirstVert != prefabFirstVert || gameobjectLastVert != prefabLasttVert)))
@@ -94,6 +99,7 @@ namespace Hytone.Timberborn.MirrorBuildings
 
             // Reset flip state after building is places
             _flipState = false;
+            _prefabMeshFilter = null;
         }
 
         [HarmonyPatch(typeof(ToolManager), nameof(ToolManager.ExitTool))]
@@ -101,6 +107,7 @@ namespace Hytone.Timberborn.MirrorBuildings
         static void ExitToolPostfix()
         {
             _flipState = false;
+            _prefabMeshFilter = null;
         }
 
         /// <summary>
