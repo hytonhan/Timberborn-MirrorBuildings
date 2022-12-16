@@ -14,6 +14,10 @@ and adding the dll to your bepinex plugins folder. This plugin is dependent on t
 
 # Changelog
 
+## v3.1.0 - 16.12.2022
+- Updated TimberAPI to 0.5.3
+- Minor changed caused by game version 0.3.4.3
+
 ## v3.0.1 - 14.10.2022
 - Improved performance when placing down a building
 

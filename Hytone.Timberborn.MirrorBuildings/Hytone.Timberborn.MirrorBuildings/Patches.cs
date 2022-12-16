@@ -8,6 +8,7 @@ using Timberborn.BlockSystem;
 using Timberborn.Buildings;
 using Timberborn.Coordinates;
 using Timberborn.EntitySystem;
+using Timberborn.PrefabSystem;
 using Timberborn.PreviewSystem;
 using Timberborn.ToolSystem;
 using UnityEngine;
