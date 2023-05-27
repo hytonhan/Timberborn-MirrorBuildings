@@ -1,9 +1,13 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.Linq;
 using TimberApi.DependencyContainerSystem;
 using Timberborn.BlockSystem;
 using Timberborn.BlockSystemNavigation;
 using Timberborn.Buildings;
+using Timberborn.Clusters;
+using Timberborn.Coordinates;
+using Timberborn.MeshyAnimations;
 using Timberborn.SlotSystem;
 using Timberborn.Stockpiles;
 using Timberborn.Workshops;
@@ -31,9 +35,9 @@ namespace Hytone.Timberborn.MirrorBuildings
         public static void Flip(GameObject gameObject)
         {
             var model = gameObject.GetComponent<BuildingModel>();
-            var finishedModelMesh = model.FinishedModel.GetComponent<MeshFilter>()?.mesh;
+            var finishedModelMesh = model.FinishedModel.GetComponentInChildren<MeshFilter>()?.mesh;
             var unFinishedModelMesh = model.UnfinishedModel.GetComponentInChildren<MeshFilter>()?.mesh;
-            var blockObject = model.GetComponent<BlockObject>();
+            var blockObject = model.GetComponentFast<BlockObject>();
             var size = blockObject._blocksSpecification.Size;
             var hasEntrance = blockObject.Entrance.HasEntrance;
             Vector3Int entranceCoords = new Vector3Int();
@@ -66,6 +70,7 @@ namespace Hytone.Timberborn.MirrorBuildings
             FlipWaterStuff(gameObject, size);
             FlipEntrance(gameObject, blockObject, size, hasEntrance, entranceCoords);
             FlipSomeRandomPositions(gameObject, model.FinishedModel.GetComponent<MeshFilter>(), size);
+            FlipPowerConnections(gameObject, size);
         }
 
         /// <summary>
@@ -112,7 +117,8 @@ namespace Hytone.Timberborn.MirrorBuildings
         private static void FlipSomeRandomAnimators(GameObject gameObject, Vector3Int size)
         {
             var animator = gameObject.GetComponentInChildren<Animator>();
-            var smokeAnimator = gameObject.GetComponentInChildren<SmokeAnimationController>();
+            //var smokeAnimator = gameObject.GetComponentInChildren<SmokeAnimationController>();
+            var smokeAnimator = gameObject.GetComponentInChildren<MeshyAnimatorController>();
 
             if (animator != null &&
                 (animator.name.Contains("WaterPump.Folktails") ||
@@ -131,9 +137,9 @@ namespace Hytone.Timberborn.MirrorBuildings
             if (smokeAnimator != null &&
                 (smokeAnimator.name.Contains("Healer")))
             {
-                smokeAnimator._smoke.transform.localPosition = new Vector3(size.x - smokeAnimator._smoke.transform.localPosition.x,
-                                                                           smokeAnimator._smoke.transform.localPosition.y,
-                                                                           smokeAnimator._smoke.transform.localPosition.z);
+                smokeAnimator._animator.transform.localPosition = new Vector3(size.x - smokeAnimator._animator.transform.localPosition.x,
+                                                                           smokeAnimator._animator.transform.localPosition.y,
+                                                                           smokeAnimator._animator.transform.localPosition.z);
             }
         }
 
@@ -195,7 +201,7 @@ namespace Hytone.Timberborn.MirrorBuildings
                                                                     entranceCoords.z);
 
                 //This moves the transform component which dictates where beavers sit when idle on workplace
-                var transformSlotInit = blockObject.gameObject.GetComponent<TransformSlotInitializer>();
+                var transformSlotInit = blockObject.GameObjectFast.GetComponent<TransformSlotInitializer>();
                 if (transformSlotInit != null)
                 {
                     transformSlotInit._slotSpecifications.Count();
@@ -203,7 +209,7 @@ namespace Hytone.Timberborn.MirrorBuildings
                     foreach (var item in transformSlotInit._slotSpecifications)
                     {
                         var slotRetriever = DependencyContainer.GetInstance<SlotRetriever>();
-                        var slots = slotRetriever.GetSlots(blockObject.gameObject, item.SlotKeyword);
+                        var slots = slotRetriever.GetSlots(blockObject.GameObjectFast, item.SlotKeyword);
 
                         foreach (Transform transform in slots)
                         {
@@ -262,6 +268,36 @@ namespace Hytone.Timberborn.MirrorBuildings
                                                                    waterlevel._target.localPosition.y,
                                                                    waterlevel._target.localPosition.z);
                 }
+            }
+        }
+
+        private static void FlipPowerConnections(GameObject gameObject, Vector3Int size)
+        {
+            var mask = Directions3D.Left | Directions3D.Right;
+
+            if (gameObject.TryGetComponent<ClusterElement>(out var clusterElement))
+            {
+                var blocks = clusterElement._clusterElementSpecification._connectableBlocks;
+                for (int i = 0;  i < blocks.Count(); i++)
+                {
+                    var spec = blocks[i];
+                    spec._coordinates = new Vector3Int(size.x - 1 - spec._coordinates.x,
+                                                       spec._coordinates.y,
+                                                       spec._coordinates.z);
+                    if ((spec._connectableDirections & mask) == mask ||
+                        (spec._connectableDirections & mask) == Directions3D.None)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        spec._connectableDirections = spec._connectableDirections ^ mask;
+                    }
+
+                    blocks[i] = spec;
+                }
+                clusterElement._clusterElementSpecification._connectableBlocks = blocks;
+                clusterElement._clusterElementSpecification._transputSpecifications = clusterElement._clusterElementSpecification.CreateTransputSpecifications().ToImmutableArray();
             }
         }
     }

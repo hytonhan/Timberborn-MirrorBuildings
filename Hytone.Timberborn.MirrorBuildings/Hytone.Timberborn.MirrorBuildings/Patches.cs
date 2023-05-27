@@ -1,15 +1,21 @@
 ﻿using Bindito.Unity;
 using HarmonyLib;
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using TimberApi.DependencyContainerSystem;
+using Timberborn.BaseComponentSystem;
 using Timberborn.BlockObjectTools;
 using Timberborn.BlockSystem;
 using Timberborn.Buildings;
+using Timberborn.Clusters;
 using Timberborn.Coordinates;
 using Timberborn.EntitySystem;
+using Timberborn.Meshy;
 using Timberborn.PrefabSystem;
 using Timberborn.PreviewSystem;
+using Timberborn.TemplateSystem;
 using Timberborn.ToolSystem;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -23,6 +29,9 @@ namespace Hytone.Timberborn.MirrorBuildings
 
         private static MeshFilter _prefabMeshFilter;
 
+        private static Dictionary<PlaceableBlockObject, PlaceableBlockObject> _previewCache = new Dictionary<PlaceableBlockObject, PlaceableBlockObject>();
+
+
         /// <summary>
         /// Tracks when F is pressed and toggles _flipState when it is pressed
         /// </summary>
@@ -30,7 +39,6 @@ namespace Hytone.Timberborn.MirrorBuildings
         [HarmonyPatch(typeof(BlockObjectTool), nameof(BlockObjectTool.ProcessInput))]
         static void Prefix(BlockObjectTool __instance)
         {
-
             if (__instance._inputService._keyboard.IsKeyDown(Key.F))
             {
                 _flipState = !_flipState;
@@ -45,12 +53,13 @@ namespace Hytone.Timberborn.MirrorBuildings
         [HarmonyPatch(typeof(BlockObject), nameof(BlockObject.Reposition))]
         static void Prefix(BlockObject __instance)
         {
-            var model = __instance.gameObject.GetComponent<BuildingModel>();
+
+            var model = __instance.GameObjectFast.GetComponent<BuildingModel>();
             if (model == null)
             {
                 return;
             }
-            var meshFilter = model.FinishedModel.GetComponent<MeshFilter>();
+            var meshFilter = model.FinishedModel.GetComponentInChildren<MeshFilter>();
             if (meshFilter == null)
             {
                 return;
@@ -58,7 +67,7 @@ namespace Hytone.Timberborn.MirrorBuildings
             var mesh = meshFilter.mesh;
             if (_prefabMeshFilter == null)
             {
-                _prefabMeshFilter = GetPrefabMeshFilter(__instance.gameObject);
+                _prefabMeshFilter = GetPrefabMeshFilter(__instance);
             }
 
             var gameobjectFirstVert = MathF.Round(mesh.vertices.First().x, 4);
@@ -69,8 +78,8 @@ namespace Hytone.Timberborn.MirrorBuildings
             if ((_flipState == true && gameobjectFirstVert == prefabFirstVert && gameobjectLastVert == prefabLasttVert) ||
                 (_flipState == false && (gameobjectFirstVert != prefabFirstVert || gameobjectLastVert != prefabLasttVert)))
             {
-                __instance._transformChangeNotifier.NotifyPreChangeListeners();
-                BuildingFlipperHelpers.Flip(__instance.gameObject);
+                //__instance._transformChangeNotifier.NotifyPreChangeListeners();
+                BuildingFlipperHelpers.Flip(__instance.GameObjectFast);
                 __instance.UpdateTransformedBlocks();
                 __instance.UpdateTransform();
                 __instance._transformChangeNotifier.NotifyPostChangeListeners();
@@ -89,9 +98,9 @@ namespace Hytone.Timberborn.MirrorBuildings
                 typeof(Orientation)
         })]
         [HarmonyPostfix]
-        static void BlockObjectFactoryCreatePostfix(GameObject __result)
+        static void BlockObjectFactoryCreatePostfix(BlockObject __result)
         {
-            var component = __result.GetComponent<MirrorBuildingMonobehaviour>();
+            var component = __result.GetComponentFast<MirrorBuildingMonobehaviour>();
             if (component == null)
             {
                 return;
@@ -114,35 +123,54 @@ namespace Hytone.Timberborn.MirrorBuildings
         /// <summary>
         /// Helper method to get a gameobject's MeshFilter
         /// </summary>
-        /// <param name="gameObject"></param>
+        /// <param name="baseComponent"></param>
         /// <returns></returns>
-        private static MeshFilter GetPrefabMeshFilter(GameObject gameObject)
+        private static MeshFilter GetPrefabMeshFilter(BaseComponent baseComponent)
         {
             var prefabNameRetriever = DependencyContainer.GetInstance<PrefabNameRetriever>();
-            var prefabname = prefabNameRetriever.GetPrefabName(gameObject);
+            var prefabname = prefabNameRetriever.GetPrefabName(baseComponent);
             var prefabMapper = DependencyContainer.GetInstance<PrefabNameMapper>();
             var prefab = prefabMapper.GetPrefab(prefabname);
 
+            TemplateInstantiator templateInstantiator = DependencyContainer.GetInstance<TemplateInstantiator>();
             var previewFactory = DependencyContainer.GetInstance<PreviewFactory>();
 
-            var preview = previewFactory.Create(prefab);
+            CachedTemplate cachedTemplate = templateInstantiator.GetCachedTemplate(prefab.GameObjectFast);
+            var gameObject = templateInstantiator._baseInstantiator.InstantiateInactive(cachedTemplate.Prefab, previewFactory.transform);
 
-            var prefabModel = preview.GetComponent<BuildingModel>();
-            var prefabMesh = prefabModel.FinishedModel.GetComponent<MeshFilter>();
+            TemplateInstantiator.GetComponentContainers(gameObject, templateInstantiator._temporaryContainerCache);
+            for (int i = 0; i < templateInstantiator._temporaryContainerCache.Count; i++)
+            {
+                templateInstantiator._temporaryContainerCache[i].GetComponents(templateInstantiator._temporaryComponentCache);
+                ImmutableArray<CachedTemplateInitializer> initializers = cachedTemplate.Initializers;
+                for (int j = 0; j < initializers.Length; j++)
+                {
+                    CachedTemplateInitializer cachedTemplateInitializer = initializers[j];
+                    if (cachedTemplateInitializer.ContainerIndex == i)
+                    {
+                        cachedTemplateInitializer.Method(templateInstantiator._temporaryComponentCache[cachedTemplateInitializer.SubjectIndex], templateInstantiator._temporaryComponentCache[cachedTemplateInitializer.DecoratorIndex]);
+                    }
+                }
+                templateInstantiator._temporaryComponentCache.Clear();
+            }
+            templateInstantiator._temporaryContainerCache.Clear();
 
-            return prefabMesh;
+            var meshyDescs = gameObject.GetComponentsInChildren<MeshyDescription>();
+            var meshFilter = meshyDescs.First()
+                                       .GetComponentInChildren<MeshFilter>();
+            return meshFilter;
         }
 
-        [HarmonyPatch(typeof(EntityService), "Instantiate", typeof(GameObject), typeof(Guid))]
+        [HarmonyPatch(typeof(EntityService), "Instantiate", typeof(BaseComponent), typeof(Guid))]
         class MinWindStrengthPatch
         {
-            public static void Postfix(GameObject __result)
+            public static void Postfix(BaseComponent __result)
             {
-                if (__result.GetComponent<Building>() != null &&
+                if (__result.GetComponentFast<Building>() != null &&
                     !__result.name.Contains("Path"))
                 {
-                    var instantiator = DependencyContainer.GetInstance<IInstantiator>();
-                    instantiator.AddComponent<MirrorBuildingMonobehaviour>(__result);
+                    var instantiator = DependencyContainer.GetInstance<BaseInstantiator>();
+                    instantiator.AddComponent<MirrorBuildingMonobehaviour>(__result.GameObjectFast);
                 }
             }
         }

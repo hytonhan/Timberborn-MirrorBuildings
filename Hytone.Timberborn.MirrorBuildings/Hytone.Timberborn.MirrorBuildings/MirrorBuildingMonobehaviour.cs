@@ -1,4 +1,5 @@
-﻿using Timberborn.BlockSystem;
+﻿using Timberborn.BaseComponentSystem;
+using Timberborn.BlockSystem;
 using Timberborn.Persistence;
 using UnityEngine;
 
@@ -7,7 +8,7 @@ namespace Hytone.Timberborn.MirrorBuildings
     /// <summary>
     /// This class handles stuff relating to flipping buildings
     /// </summary>
-    public class MirrorBuildingMonobehaviour : MonoBehaviour, IPersistentEntity
+    public class MirrorBuildingMonobehaviour : BaseComponent, IPersistentEntity
     {
         //Keys used in data saving/loading
         private static readonly ComponentKey MirrorBuildingKey = new ComponentKey(nameof(MirrorBuildingMonobehaviour));
@@ -53,8 +54,8 @@ namespace Hytone.Timberborn.MirrorBuildings
         /// </summary>
         private void DoFlip()
         {
-            var blockObject = GetComponent<BlockObject>();
-            BuildingFlipperHelpers.Flip(gameObject);
+            var blockObject = GetComponentFast<BlockObject>();
+            BuildingFlipperHelpers.Flip(GameObjectFast);
             blockObject.UpdateTransformedBlocks();
             blockObject.UpdateTransform();
         }

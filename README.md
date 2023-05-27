@@ -14,6 +14,10 @@ and adding the dll to your bepinex plugins folder. This plugin is dependent on t
 
 # Changelog
 
+## v3.2.0 - 27.5.2023
+- Updated to work with Update 4!
+- Fixed mirrored buildings not having a powerconnection on where the entrance used to be
+
 ## v3.1.0 - 16.12.2022
 - Updated TimberAPI to 0.5.3
 - Minor changed caused by game version 0.3.4.3
