@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Reflection;
 using TimberApi.DependencyContainerSystem;
 using Timberborn.BlockSystem;
 using Timberborn.BlockSystemNavigation;
@@ -8,6 +9,7 @@ using Timberborn.Buildings;
 using Timberborn.Clusters;
 using Timberborn.Coordinates;
 using Timberborn.MeshyAnimations;
+using Timberborn.Particles;
 using Timberborn.SlotSystem;
 using Timberborn.Stockpiles;
 using Timberborn.Workshops;
@@ -116,30 +118,35 @@ namespace Hytone.Timberborn.MirrorBuildings
         /// <param name="size"></param>
         private static void FlipSomeRandomAnimators(GameObject gameObject, Vector3Int size)
         {
-            var animator = gameObject.GetComponentInChildren<Animator>();
-            //var smokeAnimator = gameObject.GetComponentInChildren<SmokeAnimationController>();
-            var smokeAnimator = gameObject.GetComponentInChildren<MeshyAnimatorController>();
+            var animator = gameObject.GetComponentInChildren<MeshyAnimator>();
+            var particleRunner = gameObject.GetComponentInChildren<ParticlesRunner>();
 
-            if (animator != null &&
-                (animator.name.Contains("WaterPump.Folktails") ||
-                 animator.name.Contains("Gristmill") ||
-                 animator.name.Contains("PaperMill") ||
-                 animator.name.Contains("DeepWaterPump.IronTeeth")))
+            if (particleRunner != null &&
+                (gameObject.name.Contains("Healer")))
             {
-                animator.transform.localScale = new Vector3(animator.transform.localScale.x * -1,
-                                                              animator.transform.localScale.y,
-                                                              animator.transform.localScale.z);
-                animator.transform.localPosition = new Vector3(size.x - animator.transform.localPosition.x,
-                                                               animator.transform.localPosition.y,
-                                                               animator.transform.localPosition.z);
+                foreach (var particle in particleRunner._particleObjects)
+                {
+                    particle._particleSystem.transform.localPosition = new Vector3(size.x - particle._particleSystem.transform.localPosition.x,
+                                                                                   particle._particleSystem.transform.localPosition.y,
+                                                                                   particle._particleSystem.transform.localPosition.z);
+                }
             }
-            // Healer doesn't have an animator, but just an SmokeAnimationController
-            if (smokeAnimator != null &&
-                (smokeAnimator.name.Contains("Healer")))
+            if (animator != null &&
+                (gameObject.name.Contains("WaterPump.Folktails") ||
+                 gameObject.name.Contains("Gristmill") ||
+                 gameObject.name.Contains("PaperMill") ||
+                 gameObject.name.Contains("DeepWaterPump.IronTeeth")))
             {
-                smokeAnimator._animator.transform.localPosition = new Vector3(size.x - smokeAnimator._animator.transform.localPosition.x,
-                                                                           smokeAnimator._animator.transform.localPosition.y,
-                                                                           smokeAnimator._animator.transform.localPosition.z);
+                var nodeAnimationUpdaters = animator.GetComponentsInChildren<NodeAnimationUpdater>();
+                foreach (var nodeAnimationUpdater in nodeAnimationUpdaters)
+                {
+                    nodeAnimationUpdater._selfTransform.localEulerAngles = new Vector3(nodeAnimationUpdater._selfTransform.localEulerAngles.x,
+                                                                                       nodeAnimationUpdater._selfTransform.localEulerAngles.y * -1,
+                                                                                       nodeAnimationUpdater._selfTransform.localEulerAngles.z);
+                    nodeAnimationUpdater._selfTransform.localPosition = new Vector3(size.x - nodeAnimationUpdater._selfTransform.localPosition.x,
+                                                                                    nodeAnimationUpdater._selfTransform.localPosition.y,
+                                                                                    nodeAnimationUpdater._selfTransform.localPosition.z);
+                }
             }
         }
 
@@ -278,7 +285,7 @@ namespace Hytone.Timberborn.MirrorBuildings
             if (gameObject.TryGetComponent<ClusterElement>(out var clusterElement))
             {
                 var blocks = clusterElement._clusterElementSpecification._connectableBlocks;
-                for (int i = 0;  i < blocks.Count(); i++)
+                for (int i = 0; i < blocks.Count(); i++)
                 {
                     var spec = blocks[i];
                     spec._coordinates = new Vector3Int(size.x - 1 - spec._coordinates.x,

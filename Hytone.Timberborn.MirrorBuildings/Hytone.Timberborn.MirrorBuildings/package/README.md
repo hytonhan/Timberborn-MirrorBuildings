@@ -14,6 +14,12 @@ and adding the dll to your bepinex plugins folder. This plugin is dependent on t
 
 # Changelog
 
+## v3.2.2 - 28.5.2023
+- Fixed some of buildings' animations not being flipped'
+
+## v3.2.1 - 27.5.2023
+- Fixed so the mod doesn't crash with modded buildings
+
 ## v3.2.0 - 27.5.2023
 - Updated to work with Update 4!
 - Fixed mirrored buildings not having a powerconnection on where the entrance used to be

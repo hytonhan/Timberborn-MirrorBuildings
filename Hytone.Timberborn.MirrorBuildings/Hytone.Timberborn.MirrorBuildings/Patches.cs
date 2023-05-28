@@ -13,6 +13,7 @@ using Timberborn.Clusters;
 using Timberborn.Coordinates;
 using Timberborn.EntitySystem;
 using Timberborn.Meshy;
+using Timberborn.MeshyAnimations;
 using Timberborn.PrefabSystem;
 using Timberborn.PreviewSystem;
 using Timberborn.TemplateSystem;
@@ -156,9 +157,65 @@ namespace Hytone.Timberborn.MirrorBuildings
             templateInstantiator._temporaryContainerCache.Clear();
 
             var meshyDescs = gameObject.GetComponentsInChildren<MeshyDescription>();
-            var meshFilter = meshyDescs.First()
+            MeshFilter meshFilter = null;
+            if (meshyDescs == null || meshyDescs.Length == 0)
+            {
+                var model = gameObject.GetComponent<BuildingModel>();
+                var filter = model.FinishedModel.GetComponent<MeshFilter>();
+                meshFilter = filter;
+            }
+            else
+            {
+                meshFilter = meshyDescs.First()
                                        .GetComponentInChildren<MeshFilter>();
+            }
             return meshFilter;
+        }
+
+        [HarmonyPatch(typeof(NodeAnimationUpdater), nameof(NodeAnimationUpdater.UpdateTransform))]
+        public static class AnimationPatch4
+        {
+            [HarmonyPostfix]
+            public static bool Prefix(NodeAnimationUpdater __instance, int fromFrame, int toFrame, float weight)
+            {
+                var building = __instance.GetComponentInParent<Building>();
+                if (!(building?.name?.Contains("WaterPump.Folktails") ?? false) &&
+                    !(building?.name?.Contains("Gristmill") ?? false) &&
+                    !(building?.name?.Contains("DeepWaterPump.IronTeeth") ?? false))
+                {
+                    return true;
+                }
+
+                var mirrorMono = __instance.GetComponentInParent<MirrorBuildingMonobehaviour>();
+                if (mirrorMono == null)
+                {
+                    return true;
+                }
+
+                if (!mirrorMono.IsFlipped)
+                {
+                    return true;
+                }
+
+                var blockObject = __instance.GetComponentInParent<BlockObject>();
+                var size = blockObject._blocksSpecification.Size;
+
+                if (__instance._currentAnimation.HasDifferentScales)
+                {
+                    __instance._selfTransform.localScale = __instance.GetScale(fromFrame, toFrame, weight);
+                }
+
+                var pos = __instance.GetPosition(fromFrame, toFrame, weight);
+                __instance._selfTransform.localPosition = new Vector3(size.x - pos.x,
+                                                                      pos.y,
+                                                                      pos.z);
+                var rota = __instance.GetRotation(fromFrame, toFrame, weight);
+                __instance._selfTransform.localRotation = Quaternion.Euler(rota.eulerAngles.x,
+                                                                           rota.eulerAngles.y * -1,
+                                                                           rota.eulerAngles.z);
+
+                return false;
+            }
         }
 
         [HarmonyPatch(typeof(EntityService), "Instantiate", typeof(BaseComponent), typeof(Guid))]
