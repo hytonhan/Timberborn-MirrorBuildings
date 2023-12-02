@@ -1,0 +1,3 @@
+﻿ID,Text,Comment
+Hytone.MirrorBuilding.KeyBinding.MirrorBuilding,Flip a building,
+Hytone.MirrorBuilding.KeyBinding.MirrorBuildings,Mirrored Buildings,

@@ -2,7 +2,7 @@
 Add the ability to flip a building when placing it by pressing F. 
 
 # Usage
-Download the mod in your preferred way. Then the mod is good to go. Press F when constructing a building to flip it.
+Download the mod in your preferred way. Then the mod is good to go. Press F when constructing a building to flip it. The key to flip the bilding can be changed in the keybind options in the game.
 
 # Known issues
 This mod might cause fps issues while placing down a building. Especially is the building allows for multiple to be placed at a time. 
@@ -13,6 +13,11 @@ Recommended way to install this mod is through [Thunderstore](https://timberborn
 and adding the dll to your bepinex plugins folder. This plugin is dependent on the magnificent [TimberAPI](https://github.com/Timberborn-Modding-Central/TimberAPI).
 
 # Changelog
+
+## v4.0.0 - 2.12.2023
+- Changed flipping logic from flipping the mesh into changing scale to -1
+- Necessary changes to work with game v.0.5.*
+- Should work with modded buildings
 
 ## v3.2.1 - 27.5.2023
 - Fixed so the mod doesn't crash with modded buildings
