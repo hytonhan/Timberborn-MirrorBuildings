@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Xml.Serialization;
 using TimberApi.DependencyContainerSystem;
 using Timberborn.BaseComponentSystem;
 using Timberborn.BlockObjectTools;
@@ -28,8 +29,6 @@ namespace Hytone.Timberborn.MirrorBuildings
     {
         public static bool _flipState = false;
 
-        private static MeshFilter _prefabMeshFilter;
-
         private static Dictionary<PlaceableBlockObject, PlaceableBlockObject> _previewCache = new Dictionary<PlaceableBlockObject, PlaceableBlockObject>();
 
 
@@ -40,7 +39,7 @@ namespace Hytone.Timberborn.MirrorBuildings
         [HarmonyPatch(typeof(BlockObjectTool), nameof(BlockObjectTool.ProcessInput))]
         static void Prefix(BlockObjectTool __instance)
         {
-            if (__instance._inputService._keyboard.IsKeyDown(Key.F))
+            if (__instance._inputService.IsKeyDown("MirrorBuilding"))
             {
                 _flipState = !_flipState;
             }
@@ -54,36 +53,14 @@ namespace Hytone.Timberborn.MirrorBuildings
         [HarmonyPatch(typeof(BlockObject), nameof(BlockObject.Reposition))]
         static void Prefix(BlockObject __instance)
         {
+            var gameObject = __instance.GameObjectFast;
 
-            var model = __instance.GameObjectFast.GetComponent<BuildingModel>();
-            if (model == null)
+            if (_flipState && gameObject.transform.localScale.x > 0 ||
+                !_flipState && gameObject.transform.localScale.x < 0)
             {
-                return;
-            }
-            var meshFilter = model.FinishedModel.GetComponentInChildren<MeshFilter>();
-            if (meshFilter == null)
-            {
-                return;
-            }
-            var mesh = meshFilter.mesh;
-            if (_prefabMeshFilter == null)
-            {
-                _prefabMeshFilter = GetPrefabMeshFilter(__instance);
-            }
-
-            var gameobjectFirstVert = MathF.Round(mesh.vertices.First().x, 4);
-            var prefabFirstVert = MathF.Round(_prefabMeshFilter.mesh.vertices.First().x, 4);
-            var gameobjectLastVert = MathF.Round(mesh.vertices.Last().x, 4);
-            var prefabLasttVert = MathF.Round(_prefabMeshFilter.mesh.vertices.Last().x, 4);
-
-            if ((_flipState == true && gameobjectFirstVert == prefabFirstVert && gameobjectLastVert == prefabLasttVert) ||
-                (_flipState == false && (gameobjectFirstVert != prefabFirstVert || gameobjectLastVert != prefabLasttVert)))
-            {
-                //__instance._transformChangeNotifier.NotifyPreChangeListeners();
                 BuildingFlipperHelpers.Flip(__instance.GameObjectFast);
                 __instance.UpdateTransformedBlocks();
-                __instance.UpdateTransform();
-                __instance._transformChangeNotifier.NotifyPostChangeListeners();
+                __instance.UpdateTransform();                                            
             }
         }
 
@@ -110,7 +87,6 @@ namespace Hytone.Timberborn.MirrorBuildings
 
             // Reset flip state after building is places
             _flipState = false;
-            _prefabMeshFilter = null;
         }
 
         [HarmonyPatch(typeof(ToolManager), nameof(ToolManager.ExitTool))]
@@ -118,105 +94,53 @@ namespace Hytone.Timberborn.MirrorBuildings
         static void ExitToolPostfix()
         {
             _flipState = false;
-            _prefabMeshFilter = null;
         }
 
-        /// <summary>
-        /// Helper method to get a gameobject's MeshFilter
-        /// </summary>
-        /// <param name="baseComponent"></param>
-        /// <returns></returns>
-        private static MeshFilter GetPrefabMeshFilter(BaseComponent baseComponent)
-        {
-            var prefabNameRetriever = DependencyContainer.GetInstance<PrefabNameRetriever>();
-            var prefabname = prefabNameRetriever.GetPrefabName(baseComponent);
-            var prefabMapper = DependencyContainer.GetInstance<PrefabNameMapper>();
-            var prefab = prefabMapper.GetPrefab(prefabname);
+        //[HarmonyPatch(typeof(NodeAnimationUpdater), nameof(NodeAnimationUpdater.UpdateTransform))]
+        //public static class AnimationPatch4
+        //{
+        //    [HarmonyPostfix]
+        //    public static bool Prefix(NodeAnimationUpdater __instance, int fromFrame, int toFrame, float weight)
+        //    {
+        //        var building = __instance.GetComponentInParent<Building>();
+        //        if (!(building?.name?.Contains("WaterPump.Folktails") ?? false) &&
+        //            !(building?.name?.Contains("Gristmill") ?? false) &&
+        //            !(building?.name?.Contains("DeepWaterPump.IronTeeth") ?? false))
+        //        {
+        //            return true;
+        //        }
 
-            TemplateInstantiator templateInstantiator = DependencyContainer.GetInstance<TemplateInstantiator>();
-            var previewFactory = DependencyContainer.GetInstance<PreviewFactory>();
+        //        var mirrorMono = __instance.GetComponentInParent<MirrorBuildingMonobehaviour>();
+        //        if (mirrorMono == null)
+        //        {
+        //            return true;
+        //        }
 
-            CachedTemplate cachedTemplate = templateInstantiator.GetCachedTemplate(prefab.GameObjectFast);
-            var gameObject = templateInstantiator._baseInstantiator.InstantiateInactive(cachedTemplate.Prefab, previewFactory.transform);
+        //        if (!mirrorMono.IsFlipped)
+        //        {
+        //            return true;
+        //        }
 
-            TemplateInstantiator.GetComponentContainers(gameObject, templateInstantiator._temporaryContainerCache);
-            for (int i = 0; i < templateInstantiator._temporaryContainerCache.Count; i++)
-            {
-                templateInstantiator._temporaryContainerCache[i].GetComponents(templateInstantiator._temporaryComponentCache);
-                ImmutableArray<CachedTemplateInitializer> initializers = cachedTemplate.Initializers;
-                for (int j = 0; j < initializers.Length; j++)
-                {
-                    CachedTemplateInitializer cachedTemplateInitializer = initializers[j];
-                    if (cachedTemplateInitializer.ContainerIndex == i)
-                    {
-                        cachedTemplateInitializer.Method(templateInstantiator._temporaryComponentCache[cachedTemplateInitializer.SubjectIndex], templateInstantiator._temporaryComponentCache[cachedTemplateInitializer.DecoratorIndex]);
-                    }
-                }
-                templateInstantiator._temporaryComponentCache.Clear();
-            }
-            templateInstantiator._temporaryContainerCache.Clear();
+        //        var blockObject = __instance.GetComponentInParent<BlockObject>();
+        //        var size = blockObject._blocksSpecification.Size;
 
-            var meshyDescs = gameObject.GetComponentsInChildren<MeshyDescription>();
-            MeshFilter meshFilter = null;
-            if (meshyDescs == null || meshyDescs.Length == 0)
-            {
-                var model = gameObject.GetComponent<BuildingModel>();
-                var filter = model.FinishedModel.GetComponent<MeshFilter>();
-                meshFilter = filter;
-            }
-            else
-            {
-                meshFilter = meshyDescs.First()
-                                       .GetComponentInChildren<MeshFilter>();
-            }
-            return meshFilter;
-        }
+        //        if (__instance._currentAnimation.HasDifferentScales)
+        //        {
+        //            __instance._selfTransform.localScale = __instance.GetScale(fromFrame, toFrame, weight);
+        //        }
 
-        [HarmonyPatch(typeof(NodeAnimationUpdater), nameof(NodeAnimationUpdater.UpdateTransform))]
-        public static class AnimationPatch4
-        {
-            [HarmonyPostfix]
-            public static bool Prefix(NodeAnimationUpdater __instance, int fromFrame, int toFrame, float weight)
-            {
-                var building = __instance.GetComponentInParent<Building>();
-                if (!(building?.name?.Contains("WaterPump.Folktails") ?? false) &&
-                    !(building?.name?.Contains("Gristmill") ?? false) &&
-                    !(building?.name?.Contains("DeepWaterPump.IronTeeth") ?? false))
-                {
-                    return true;
-                }
+        //        var pos = __instance.GetPosition(fromFrame, toFrame, weight);
+        //        __instance._selfTransform.localPosition = new Vector3(size.x - pos.x,
+        //                                                              pos.y,
+        //                                                              pos.z);
+        //        var rota = __instance.GetRotation(fromFrame, toFrame, weight);
+        //        __instance._selfTransform.localRotation = Quaternion.Euler(rota.eulerAngles.x,
+        //                                                                   rota.eulerAngles.y * -1,
+        //                                                                   rota.eulerAngles.z);
 
-                var mirrorMono = __instance.GetComponentInParent<MirrorBuildingMonobehaviour>();
-                if (mirrorMono == null)
-                {
-                    return true;
-                }
-
-                if (!mirrorMono.IsFlipped)
-                {
-                    return true;
-                }
-
-                var blockObject = __instance.GetComponentInParent<BlockObject>();
-                var size = blockObject._blocksSpecification.Size;
-
-                if (__instance._currentAnimation.HasDifferentScales)
-                {
-                    __instance._selfTransform.localScale = __instance.GetScale(fromFrame, toFrame, weight);
-                }
-
-                var pos = __instance.GetPosition(fromFrame, toFrame, weight);
-                __instance._selfTransform.localPosition = new Vector3(size.x - pos.x,
-                                                                      pos.y,
-                                                                      pos.z);
-                var rota = __instance.GetRotation(fromFrame, toFrame, weight);
-                __instance._selfTransform.localRotation = Quaternion.Euler(rota.eulerAngles.x,
-                                                                           rota.eulerAngles.y * -1,
-                                                                           rota.eulerAngles.z);
-
-                return false;
-            }
-        }
+        //        return false;
+        //    }
+        //}
 
         [HarmonyPatch(typeof(EntityService), "Instantiate", typeof(BaseComponent), typeof(Guid))]
         class MinWindStrengthPatch

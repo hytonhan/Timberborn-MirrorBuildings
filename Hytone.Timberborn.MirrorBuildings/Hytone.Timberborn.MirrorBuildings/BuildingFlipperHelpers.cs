@@ -1,19 +1,12 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Reflection;
-using TimberApi.DependencyContainerSystem;
 using Timberborn.BlockSystem;
 using Timberborn.BlockSystemNavigation;
 using Timberborn.Buildings;
 using Timberborn.Clusters;
 using Timberborn.Coordinates;
-using Timberborn.MeshyAnimations;
-using Timberborn.Particles;
-using Timberborn.SlotSystem;
-using Timberborn.Stockpiles;
-using Timberborn.Workshops;
-//using TimberbornAPI;
+using Timberborn.WaterWorkshops;
 using UnityEngine;
 
 namespace Hytone.Timberborn.MirrorBuildings
@@ -37,8 +30,6 @@ namespace Hytone.Timberborn.MirrorBuildings
         public static void Flip(GameObject gameObject)
         {
             var model = gameObject.GetComponent<BuildingModel>();
-            var finishedModelMesh = model.FinishedModel.GetComponentInChildren<MeshFilter>()?.mesh;
-            var unFinishedModelMesh = model.UnfinishedModel.GetComponentInChildren<MeshFilter>()?.mesh;
             var blockObject = model.GetComponentFast<BlockObject>();
             var size = blockObject._blocksSpecification.Size;
             var hasEntrance = blockObject.Entrance.HasEntrance;
@@ -48,106 +39,24 @@ namespace Hytone.Timberborn.MirrorBuildings
                 entranceCoords = blockObject.Entrance.Coordinates;
             }
 
-            if (finishedModelMesh == null)
-            {
-                return;
-            }
+            gameObject.transform.localScale = new Vector3(gameObject.transform.localScale.x * -1,
+                                                          gameObject.transform.localScale.y,
+                                                          gameObject.transform.localScale.z);
 
-            FlipMesh(finishedModelMesh, size);
-            if (flipX)
+            model.FinishedModel.transform.localPosition = new Vector3(-size.x - model.FinishedModel.transform.localPosition.x,
+                                                                      model.FinishedModel.transform.localPosition.y,
+                                                                      model.FinishedModel.transform.localPosition.z);
+            if (model.UnfinishedModel != null)
             {
-                FlipNormals(finishedModelMesh);
+                model.UnfinishedModel.transform.localPosition = new Vector3(-size.x - model.UnfinishedModel.transform.localPosition.x,
+                                                                            model.UnfinishedModel.transform.localPosition.y,
+                                                                            model.UnfinishedModel.transform.localPosition.z);
             }
-
-            if (unFinishedModelMesh != null)
-            {
-                FlipMesh(unFinishedModelMesh, size);
-                if (flipX) FlipNormals(unFinishedModelMesh);
-                unFinishedModelMesh.RecalculateNormals();
-            }
-
-            finishedModelMesh.RecalculateNormals();
-            FlipSomeRandomAnimators(gameObject, size);
             FlipBlocks(blockObject, size);
             FlipWaterStuff(gameObject, size);
             FlipEntrance(gameObject, blockObject, size, hasEntrance, entranceCoords);
-            FlipSomeRandomPositions(gameObject, model.FinishedModel.GetComponent<MeshFilter>(), size);
+            FlipSomeRandomPositions(gameObject, size);
             FlipPowerConnections(gameObject, size);
-        }
-
-        /// <summary>
-        /// Some high tech bs so flipping a mesh works?
-        /// </summary>
-        /// <param name="mesh"></param>
-        public static void FlipNormals(Mesh mesh)
-        {
-            int[] tris = mesh.triangles;
-            for (int i = 0; i < tris.Length / 3; i++)
-            {
-                int a = tris[i * 3 + 0];
-                int b = tris[i * 3 + 1];
-                int c = tris[i * 3 + 2];
-                tris[i * 3 + 0] = c;
-                tris[i * 3 + 1] = b;
-                tris[i * 3 + 2] = a;
-            }
-            mesh.triangles = tris;
-        }
-
-        /// <summary>
-        /// Flips the mesh
-        /// </summary>
-        /// <param name="mesh"></param>
-        /// <param name="size"></param>
-        private static void FlipMesh(Mesh mesh, Vector3Int size)
-        {
-            Vector3[] verts = mesh.vertices;
-            for (int i = 0; i < verts.Length; i++)
-            {
-                Vector3 c = verts[i];
-                if (flipX) c.x = (c.x * -1) + size.x;
-                verts[i] = c;
-            }
-            mesh.vertices = verts;
-        }
-
-        /// <summary>
-        /// Some buildings require the animators to be flipped for them to look good
-        /// </summary>
-        /// <param name="gameObject"></param>
-        /// <param name="size"></param>
-        private static void FlipSomeRandomAnimators(GameObject gameObject, Vector3Int size)
-        {
-            var animator = gameObject.GetComponentInChildren<MeshyAnimator>();
-            var particleRunner = gameObject.GetComponentInChildren<ParticlesRunner>();
-
-            if (particleRunner != null &&
-                (gameObject.name.Contains("Healer")))
-            {
-                foreach (var particle in particleRunner._particleObjects)
-                {
-                    particle._particleSystem.transform.localPosition = new Vector3(size.x - particle._particleSystem.transform.localPosition.x,
-                                                                                   particle._particleSystem.transform.localPosition.y,
-                                                                                   particle._particleSystem.transform.localPosition.z);
-                }
-            }
-            if (animator != null &&
-                (gameObject.name.Contains("WaterPump.Folktails") ||
-                 gameObject.name.Contains("Gristmill") ||
-                 gameObject.name.Contains("PaperMill") ||
-                 gameObject.name.Contains("DeepWaterPump.IronTeeth")))
-            {
-                var nodeAnimationUpdaters = animator.GetComponentsInChildren<NodeAnimationUpdater>();
-                foreach (var nodeAnimationUpdater in nodeAnimationUpdaters)
-                {
-                    nodeAnimationUpdater._selfTransform.localEulerAngles = new Vector3(nodeAnimationUpdater._selfTransform.localEulerAngles.x,
-                                                                                       nodeAnimationUpdater._selfTransform.localEulerAngles.y * -1,
-                                                                                       nodeAnimationUpdater._selfTransform.localEulerAngles.z);
-                    nodeAnimationUpdater._selfTransform.localPosition = new Vector3(size.x - nodeAnimationUpdater._selfTransform.localPosition.x,
-                                                                                    nodeAnimationUpdater._selfTransform.localPosition.y,
-                                                                                    nodeAnimationUpdater._selfTransform.localPosition.z);
-                }
-            }
         }
 
         /// <summary>
@@ -156,13 +65,21 @@ namespace Hytone.Timberborn.MirrorBuildings
         /// <param name="gameObject"></param>
         /// <param name="meshfilter"></param>
         /// <param name="size"></param>
-        private static void FlipSomeRandomPositions(GameObject gameObject, MeshFilter meshfilter, Vector3Int size)
+        private static void FlipSomeRandomPositions(GameObject gameObject, Vector3Int size)
         {
             if (gameObject.name.Contains("MetalPlatform"))
             {
-                meshfilter.transform.localPosition = new Vector3(meshfilter.transform.localPosition.x * -1,
-                                                                  meshfilter.transform.localPosition.y,
-                                                                  meshfilter.transform.localPosition.z);
+                var model = gameObject.GetComponent<BuildingModel>();
+                model.FinishedModel.transform.localPosition = new Vector3(model.FinishedModel.transform.localPosition.x + size.x -1,
+                                                                          model.FinishedModel.transform.localPosition.y,
+                                                                          model.FinishedModel.transform.localPosition.z);
+            }
+            if (gameObject.name.Contains("Carousel"))
+            {
+                var model = gameObject.GetComponent<BuildingModel>();
+                model.FinishedModel.transform.localPosition = new Vector3(model.FinishedModel.transform.localPosition.x + size.x  -3 ,
+                                                                          model.FinishedModel.transform.localPosition.y,
+                                                                          model.FinishedModel.transform.localPosition.z);
             }
         }
 
@@ -206,26 +123,6 @@ namespace Hytone.Timberborn.MirrorBuildings
                 blockObject._entrance._coordinates = new Vector3Int(size.x - 1 - entranceCoords.x,
                                                                     entranceCoords.y,
                                                                     entranceCoords.z);
-
-                //This moves the transform component which dictates where beavers sit when idle on workplace
-                var transformSlotInit = blockObject.GameObjectFast.GetComponent<TransformSlotInitializer>();
-                if (transformSlotInit != null)
-                {
-                    transformSlotInit._slotSpecifications.Count();
-
-                    foreach (var item in transformSlotInit._slotSpecifications)
-                    {
-                        var slotRetriever = DependencyContainer.GetInstance<SlotRetriever>();
-                        var slots = slotRetriever.GetSlots(blockObject.GameObjectFast, item.SlotKeyword);
-
-                        foreach (Transform transform in slots)
-                        {
-                            transform.localPosition = new Vector3(size.x - transform.localPosition.x,
-                                                                  transform.localPosition.y,
-                                                                  transform.localPosition.z);
-                        }
-                    }
-                }
             }
         }
 
@@ -236,7 +133,6 @@ namespace Hytone.Timberborn.MirrorBuildings
         /// <param name="size"></param>
         private static void FlipBlocks(BlockObject blockObject, Vector3Int size)
         {
-
             for (int i = 0; i < blockObject._blocksSpecification.Size.y * blockObject._blocksSpecification.Size.z; i++)
             {
                 var counter = Math.Floor((float)blockObject._blocksSpecification.Size.x / 2);
@@ -260,21 +156,17 @@ namespace Hytone.Timberborn.MirrorBuildings
         /// <param name="size"></param>
         private static void FlipWaterStuff(GameObject gameObject, Vector3Int size)
         {
-            if (gameObject.TryGetComponent<WaterNeederManufactoryLimiter>(out var waterManufactory))
+            if (gameObject.TryGetComponent<WaterInputManufactoryLimiter>(out var waterManufactory))
             {
                 waterManufactory._waterInput._waterCoordinates = new Vector3Int(size.x - 1 - waterManufactory._waterInput._waterCoordinates.x,
                                                                                 waterManufactory._waterInput._waterCoordinates.y,
                                                                                 waterManufactory._waterInput._waterCoordinates.z);
             }
-
-            if (gameObject.TryGetComponent<GoodAmountTransformHeight>(out var waterlevel))
+            if (gameObject.TryGetComponent<WaterInputContaminationManufactoryLimiter>(out var contaminationManufactory))
             {
-                if (waterlevel._good != "Biofuel")
-                {
-                    waterlevel._target.localPosition = new Vector3(size.x - waterlevel._target.localPosition.x,
-                                                                   waterlevel._target.localPosition.y,
-                                                                   waterlevel._target.localPosition.z);
-                }
+                contaminationManufactory._waterInput._waterCoordinates = new Vector3Int(size.x - 1 - contaminationManufactory._waterInput._waterCoordinates.x,
+                                                                                contaminationManufactory._waterInput._waterCoordinates.y,
+                                                                                contaminationManufactory._waterInput._waterCoordinates.z);
             }
         }
 

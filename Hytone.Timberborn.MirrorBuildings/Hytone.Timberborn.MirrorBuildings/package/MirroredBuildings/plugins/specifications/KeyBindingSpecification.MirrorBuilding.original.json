@@ -1,0 +1,9 @@
+﻿{
+  "Id": "MirrorBuilding",
+  "GroupId": "MirroredBuildings",
+  "LocKey": "Hytone.MirrorBuilding.KeyBinding.MirrorBuilding",
+  "Order": 999,
+  "PrimaryInputBindingSpecification": {
+    "Path": "/Keyboard/f"
+  }
+}
